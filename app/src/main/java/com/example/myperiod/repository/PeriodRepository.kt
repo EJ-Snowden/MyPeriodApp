@@ -4,8 +4,9 @@ import com.example.myperiod.data.PeriodDao
 import com.example.myperiod.data.PeriodEntity
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
+import javax.inject.Inject
 
-class PeriodRepository(private val periodDao: PeriodDao) {
+class PeriodRepository @Inject constructor(private val periodDao: PeriodDao) {
     fun getAllPeriods(): Flow<List<PeriodEntity>> = periodDao.getAllPeriods()
 
     suspend fun insertPeriod(period: PeriodEntity) {
