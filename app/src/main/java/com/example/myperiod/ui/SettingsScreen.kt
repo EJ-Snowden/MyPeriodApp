@@ -40,3 +40,11 @@ fun SettingsScreen(onPeriodLengthChange: (Int) -> Unit) {
         }
     }
 }
+
+@Composable
+fun SettingsScreen(onNavigateBack: () -> Unit) {
+    // Your existing UI code
+    Button(onClick = onNavigateBack) {
+        Text("Back to Calendar")
+    }
+}
