@@ -16,15 +16,18 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myperiod.PreferencesHelper
+import com.example.myperiod.ui.viewmodel.PeriodViewModel
 import java.time.LocalDate
 import java.util.*
 
 @Composable
 fun SetupScreen(
-    onSetupComplete: (Int, LocalDate) -> Unit
+    periodViewModel: PeriodViewModel, // Inject ViewModel here
+    onSetupComplete: (Int, LocalDate, Int) -> Unit
 ) {
     var periodLength by remember { mutableStateOf("") }
     var lastPeriodDate by remember { mutableStateOf(LocalDate.now()) }
+    var periodDuration by remember { mutableStateOf("") } // New state for period duration
     val backgroundColor = Color(0xFFFFC0CB) // Light pink color
     val context = LocalContext.current
 
@@ -46,11 +49,18 @@ fun SetupScreen(
             value = periodLength,
             onValueChange = { periodLength = it },
             label = { Text("Average Cycle Length (days)", color = Color(0xFFD81B60)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(8.dp)),
+            modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(8.dp)),
             singleLine = true,
             placeholder = { Text("e.g., 28") }
+        )
+
+        OutlinedTextField(
+            value = periodDuration,
+            onValueChange = { periodDuration = it },
+            label = { Text("Period Duration (days)", color = Color(0xFFD81B60)) },
+            modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(8.dp)),
+            singleLine = true,
+            placeholder = { Text("e.g., 5") }
         )
 
         DatePickerField(
@@ -62,9 +72,13 @@ fun SetupScreen(
         Button(
             onClick = {
                 val cycleLength = periodLength.toIntOrNull()
-                if (cycleLength != null) {
+                val duration = periodDuration.toIntOrNull()
+                if (cycleLength != null && duration != null) {
                     PreferencesHelper.setSetupCompleted(context, true)
-                    onSetupComplete(cycleLength, lastPeriodDate)
+                    PreferencesHelper.setPeriodDuration(context, duration)
+                    // Save to database using ViewModel
+                    periodViewModel.saveInitialSetup(cycleLength, lastPeriodDate, duration)
+                    onSetupComplete(cycleLength, lastPeriodDate, duration)
                 } else {
                     // Handle input validation error (optional)
                 }
@@ -76,6 +90,7 @@ fun SetupScreen(
         }
     }
 }
+
 
 @Composable
 fun DatePickerField(

@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.runtime.livedata)
     kapt(libs.androidx.room.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.room.ktx)

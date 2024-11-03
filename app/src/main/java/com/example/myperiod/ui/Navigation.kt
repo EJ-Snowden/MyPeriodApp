@@ -1,42 +1,56 @@
 package com.example.myperiod.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myperiod.data.PeriodEntity
+import com.example.myperiod.ui.viewmodel.PeriodViewModel
+import java.time.LocalDate
 
 @Composable
 fun MyPeriodApp(startDestination: String) {
     val navController = rememberNavController()
-    NavigationHost(navController = navController, startDestination = startDestination)
+    NavigationHost(
+        navController = navController,
+        startDestination = startDestination,
+        onMarkPeriod = { date, flowLevel, duration -> },
+        averageCycleLength = 28,
+        periodDuration = 5
+    )
 }
 
+
 @Composable
-fun NavigationHost(navController: NavHostController, startDestination: String) {
+fun NavigationHost(
+    navController: NavHostController,
+    startDestination: String,
+    onMarkPeriod: (LocalDate, Int, Int) -> Unit,
+    averageCycleLength: Int,
+    periodDuration: Int
+) {
     NavHost(navController = navController, startDestination = startDestination) {
-        composable("setup") {
-            SetupScreen { periodLength, lastPeriodDate ->
-                // Mark setup as completed and navigate to CalendarScreen
-                // Add your logic to save completion state here
+        composable("setup") { backStackEntry ->
+            val periodViewModel: PeriodViewModel = hiltViewModel(backStackEntry) // Ensure context is provided
+            SetupScreen(periodViewModel) { periodLength, lastPeriodDate, duration ->
                 navController.navigate("calendar")
             }
         }
-        composable("calendar") {
-            val periodData = listOf<PeriodEntity>() // Replace with actual data source
-            CalendarScreen(
-                periodData = periodData,
-                onDayClick = { date ->
-                    // Define the action when a day is clicked, e.g., show details or highlight
-                },
-                onNavigateToSettings = { navController.navigate("settings") }
-            )
-        }
+        composable("calendar") { backStackEntry ->
+            val periodViewModel: PeriodViewModel = hiltViewModel(backStackEntry)
+            val periodData = periodViewModel.allPeriods.observeAsState(emptyList())
 
-        composable("settings") {
-            SettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
+            CalendarScreen(
+                periodData = periodData.value,
+                onDayClick = { date -> },
+                onMarkPeriod = { date, flowLevel, periodDuration ->
+                    onMarkPeriod(date, flowLevel, periodDuration)
+                },
+                averageCycleLength = averageCycleLength,
+                periodDuration = periodDuration
             )
         }
     }
