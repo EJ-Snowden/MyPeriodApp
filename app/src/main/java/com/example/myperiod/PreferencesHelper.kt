@@ -22,12 +22,12 @@ object PreferencesHelper {
     }
 
     // New methods to store and retrieve period duration
-    fun getPeriodDuration(context: Context): Int {
+    fun getPeriodLength(context: Context): Int {
         val sharedPreferences: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return sharedPreferences.getInt(KEY_PERIOD_DURATION, 5) // Default to 5 days if not set
+        return sharedPreferences.getInt(KEY_PERIOD_DURATION, 28)
     }
 
-    fun setPeriodDuration(context: Context, duration: Int) {
+    fun setPeriodLength(context: Context, duration: Int) {
         val sharedPreferences: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPreferences.edit()) {
             putInt(KEY_PERIOD_DURATION, duration)

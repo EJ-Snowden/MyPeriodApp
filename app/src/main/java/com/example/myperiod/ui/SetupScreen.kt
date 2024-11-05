@@ -73,11 +73,12 @@ fun SetupScreen(
             onClick = {
                 val cycleLength = periodLength.toIntOrNull()
                 val duration = periodDuration.toIntOrNull()
-                if (cycleLength != null && duration != null) {
+                val length = periodLength.toIntOrNull()
+                if (cycleLength != null && duration != null && length != null) {
                     PreferencesHelper.setSetupCompleted(context, true)
-                    PreferencesHelper.setPeriodDuration(context, duration)
+                    PreferencesHelper.setPeriodLength(context, length)
                     // Save to database using ViewModel
-                    periodViewModel.saveInitialSetup(cycleLength, lastPeriodDate, duration)
+                    periodViewModel.initializePeriodsIfEmpty(lastPeriodDate, duration, cycleLength)
                     onSetupComplete(cycleLength, lastPeriodDate, duration)
                 } else {
                     // Handle input validation error (optional)

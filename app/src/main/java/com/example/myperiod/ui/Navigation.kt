@@ -17,12 +17,14 @@ fun MyPeriodApp(startDestination: String) {
     NavigationHost(
         navController = navController,
         startDestination = startDestination,
-        onMarkPeriod = { date, flowLevel, duration -> },
-        averageCycleLength = 28,
-        periodDuration = 5
+        onMarkPeriod = { date, flowLevel, duration ->
+            // This could call a function in PeriodViewModel to handle marking the period.
+            // You need to pass PeriodViewModel or ensure access to it here.
+        },
+        averageCycleLength = 28, // Default value or fetched from user preferences
+        periodDuration = 5 // Default value or fetched from user preferences
     )
 }
-
 
 @Composable
 fun NavigationHost(
@@ -34,20 +36,22 @@ fun NavigationHost(
 ) {
     NavHost(navController = navController, startDestination = startDestination) {
         composable("setup") { backStackEntry ->
-            val periodViewModel: PeriodViewModel = hiltViewModel(backStackEntry) // Ensure context is provided
+            val periodViewModel: PeriodViewModel = hiltViewModel(backStackEntry)
             SetupScreen(periodViewModel) { periodLength, lastPeriodDate, duration ->
+                // After setup, navigate to the calendar screen and pass necessary arguments if needed
                 navController.navigate("calendar")
             }
         }
         composable("calendar") { backStackEntry ->
             val periodViewModel: PeriodViewModel = hiltViewModel(backStackEntry)
-            val periodData = periodViewModel.allPeriods.observeAsState(emptyList())
+            val periodData = periodViewModel.allPeriods.observeAsState(emptyList()).value
 
             CalendarScreen(
-                periodData = periodData.value,
+                periodData = periodData,
                 onDayClick = { date -> },
-                onMarkPeriod = { date, flowLevel, periodDuration ->
-                    onMarkPeriod(date, flowLevel, periodDuration)
+                onMarkPeriod = { date, flowLevel, duration ->
+                    periodViewModel.markPeriodDay(date, flowLevel, periodDuration, averageCycleLength)
+                    onMarkPeriod(date, flowLevel, duration) // Optional: Call external logic if needed
                 },
                 averageCycleLength = averageCycleLength,
                 periodDuration = periodDuration
@@ -55,4 +59,3 @@ fun NavigationHost(
         }
     }
 }
-

@@ -1,5 +1,6 @@
 package com.example.myperiod.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -15,45 +16,83 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PeriodViewModel @Inject constructor(
-    private val repository: PeriodRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val repository: PeriodRepository
 ) : ViewModel() {
 
-    // LiveData for observing period data
-    val allPeriods: LiveData<List<PeriodEntity>> = repository.getAllPeriods().asLiveData()
+    val allPeriods: LiveData<List<PeriodEntity>> = repository.getAllPeriods()
 
-    // Insert a new period record
-    fun addPeriod(period: PeriodEntity) {
+    fun initializePeriodsIfEmpty(startDate: LocalDate, periodDuration: Int, cycleLength: Int) {
         viewModelScope.launch {
-            repository.insertPeriod(period)
+            if (repository.getAllPeriods().value.isNullOrEmpty()) {
+                val initialPeriods = mutableListOf<PeriodEntity>()
+                for (i in 0 until periodDuration) {
+                    initialPeriods.add(
+                        PeriodEntity(
+                            date = startDate.plusDays(i.toLong()),
+                            isPeriodDay = true,
+                            flowLevel = 1 + (i % 3) // Example flow level cycle
+                        )
+                    )
+                }
+
+                // Add expected periods for the next 11 months
+                for (month in 1..11) {
+                    val nextPeriodStart = startDate.plusDays((cycleLength * month).toLong())
+                    for (i in 0 until periodDuration) {
+                        initialPeriods.add(
+                            PeriodEntity(
+                                date = nextPeriodStart.plusDays(i.toLong()),
+                                isPeriodDay = false,
+                                flowLevel = 4 // Expected flow level
+                            )
+                        )
+                    }
+                }
+
+                repository.insertPeriods(initialPeriods)
+            }
         }
     }
 
-    // Update a period record (optional)
-    fun updatePeriod(period: PeriodEntity) {
+    fun markPeriodDay(date: LocalDate, flowLevel: Int, periodDuration: Int, cycleLength: Int) {
         viewModelScope.launch {
-            repository.updatePeriod(period)
-        }
-    }
+            val updatedPeriods = mutableListOf<PeriodEntity>()
 
-    // Predict next period date
-    fun predictNextPeriodDate(lastPeriodDate: LocalDate, averageCycleLength: Int): LocalDate {
-        return lastPeriodDate.plusDays(averageCycleLength.toLong())
-    }
-
-    fun saveInitialSetup(cycleLength: Int, lastPeriodDate: LocalDate, periodDuration: Int) {
-        viewModelScope.launch {
-            // Create a new PeriodEntity with the provided information
-            val periodEntity = PeriodEntity(
-                date = lastPeriodDate,
-                isPeriodDay = true, // Assuming initial period day
-                flowLevel = 0, // Default or placeholder value
-                periodDayNumber = 1 // The first day of the period
+            // Add the marked day as day 1
+            updatedPeriods.add(
+                PeriodEntity(
+                    date = date,
+                    isPeriodDay = true,
+                    flowLevel = flowLevel
+                )
             )
-            repository.insertPeriod(periodEntity)
 
-            // Optionally save additional setup info as needed
-            // For example, save cycle length and duration as shared preferences if needed
+            // Update the days after as expected periods
+            for (i in 1 until periodDuration) {
+                updatedPeriods.add(
+                    PeriodEntity(
+                        date = date.plusDays(i.toLong()),
+                        isPeriodDay = false,
+                        flowLevel = 4 // Expected flow
+                    )
+                )
+            }
+
+            // Update future periods for 11 months
+            for (month in 1..11) {
+                val nextPeriodStart = date.plusDays((cycleLength * month).toLong())
+                for (i in 0 until periodDuration) {
+                    updatedPeriods.add(
+                        PeriodEntity(
+                            date = nextPeriodStart.plusDays(i.toLong()),
+                            isPeriodDay = false,
+                            flowLevel = 4 // Expected flow
+                        )
+                    )
+                }
+            }
+
+            repository.updatePeriods(updatedPeriods)
         }
     }
 }
