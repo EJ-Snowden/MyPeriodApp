@@ -19,4 +19,7 @@ interface PeriodDao {
 
     @Update
     suspend fun updateAll(periods: List<PeriodEntity>)
+
+    @Query("SELECT * FROM periods ORDER BY date ASC")
+    suspend fun getAllPeriodsList(): List<PeriodEntity>
 }

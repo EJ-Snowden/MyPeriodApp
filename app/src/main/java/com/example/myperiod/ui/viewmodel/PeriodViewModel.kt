@@ -56,43 +56,68 @@ class PeriodViewModel @Inject constructor(
 
     fun markPeriodDay(date: LocalDate, flowLevel: Int, periodDuration: Int, cycleLength: Int) {
         viewModelScope.launch {
-            val updatedPeriods = mutableListOf<PeriodEntity>()
+            // Retrieve current periods from the database
+            val currentPeriods = repository.getCurrentPeriods()
 
-            // Add the marked day as day 1
-            updatedPeriods.add(
-                PeriodEntity(
-                    date = date,
-                    isPeriodDay = true,
-                    flowLevel = flowLevel
-                )
-            )
+            // Create a mutable list excluding all existing expected days (level 4)
+            val updatedPeriods = currentPeriods.filterNot { it.flowLevel == 4 }.toMutableList()
 
-            // Update the days after as expected periods
-            for (i in 1 until periodDuration) {
+            // Check if the marked day is already part of an ongoing period
+            val isPartOfOngoingPeriod = currentPeriods.any { it.date == date && it.flowLevel in 1..3 }
+
+            // Add the marked day as day 1 if it is not already a confirmed part of the period
+            if (!isPartOfOngoingPeriod) {
                 updatedPeriods.add(
                     PeriodEntity(
-                        date = date.plusDays(i.toLong()),
-                        isPeriodDay = false,
-                        flowLevel = 4 // Expected flow
+                        date = date,
+                        isPeriodDay = true,
+                        flowLevel = flowLevel
                     )
                 )
             }
 
-            // Update future periods for 11 months
-            for (month in 1..11) {
-                val nextPeriodStart = date.plusDays((cycleLength * month).toLong())
-                for (i in 0 until periodDuration) {
+            // **Calculate expected days for the current cycle**
+            // This is only done after the first day is placed and ensures the `periodDuration` is maintained
+            for (i in 1 until periodDuration) {
+                val futureDate = date.plusDays(i.toLong())
+                val existingFuturePeriod = currentPeriods.find { it.date == futureDate }
+
+                // Only mark as expected if it is not already marked as a confirmed period (levels 1, 2, 3)
+                if (existingFuturePeriod == null || existingFuturePeriod.flowLevel !in 1..3) {
                     updatedPeriods.add(
                         PeriodEntity(
-                            date = nextPeriodStart.plusDays(i.toLong()),
+                            date = futureDate,
                             isPeriodDay = false,
-                            flowLevel = 4 // Expected flow
+                            flowLevel = 4 // Mark as an expected day
                         )
                     )
                 }
             }
 
-            repository.updatePeriods(updatedPeriods)
+            // Calculate and add expected days for future cycles based on the cycle length
+            for (cycle in 1..11) {
+                val nextCycleStart = date.plusDays((cycleLength * cycle).toLong())
+
+                for (i in 0 until periodDuration) {
+                    val cycleDate = nextCycleStart.plusDays(i.toLong())
+                    val existingCyclePeriod = currentPeriods.find { it.date == cycleDate }
+
+                    // Add only if not already marked with levels 1, 2, or 3
+                    if (existingCyclePeriod == null || existingCyclePeriod.flowLevel !in 1..3) {
+                        updatedPeriods.add(
+                            PeriodEntity(
+                                date = cycleDate,
+                                isPeriodDay = false,
+                                flowLevel = 4 // Expected for future cycles
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Insert or update in the database
+            repository.insertOrUpdatePeriods(updatedPeriods)
         }
     }
+
 }

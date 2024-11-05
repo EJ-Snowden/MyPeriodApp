@@ -19,4 +19,13 @@ class PeriodRepository @Inject constructor(private val periodDao: PeriodDao) {
     suspend fun updatePeriods(periods: List<PeriodEntity>) {
         periodDao.updateAll(periods)
     }
+
+    suspend fun insertOrUpdatePeriods(periods: List<PeriodEntity>) {
+        periodDao.insertAll(periods)
+    }
+
+    // In PeriodRepository
+    suspend fun getCurrentPeriods(): List<PeriodEntity> {
+        return periodDao.getAllPeriodsList() // Assuming a synchronous list retrieval method
+    }
 }
