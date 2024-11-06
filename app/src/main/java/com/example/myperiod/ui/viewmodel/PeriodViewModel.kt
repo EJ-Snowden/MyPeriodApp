@@ -21,7 +21,9 @@ class PeriodViewModel @Inject constructor(
 
     val allPeriods: LiveData<List<PeriodEntity>> = repository.getAllPeriods()
     var previousDay : LocalDate? = null
+    var firstDay : LocalDate? = null
     var currentDay : LocalDate? = null
+    var lastDay : LocalDate? = null
     var nextDay : LocalDate? = null
 
     fun initializePeriodsIfEmpty(startDate: LocalDate, periodDuration: Int, cycleLength: Int) {
@@ -70,10 +72,17 @@ class PeriodViewModel @Inject constructor(
 
             // Check if the previous day is a confirmed period day (levels 1, 2, or 3)
             currentDay = date
-            val isPreviousDayMarked = currentPeriods.any { currentDay == previousDay && it.flowLevel in 1..3 }
-            previousDay = date.minusDays(1)
-            val isNextDayMarked = currentPeriods.any { currentDay == nextDay && it.flowLevel in 1..3 }
-            nextDay = date.plusDays(1)
+
+            if (firstDay == null || firstDay!!.isAfter(currentDay)){
+                firstDay = date
+            }
+            if (lastDay == null || lastDay!!.isBefore(currentDay)){
+                lastDay = date
+            }
+            val isPreviousDayMarked = currentPeriods.any { firstDay == previousDay && it.flowLevel in 1..3 }
+            previousDay = firstDay!!.minusDays(1)
+            val isNextDayMarked = currentPeriods.any { lastDay == nextDay && it.flowLevel in 1..3 }
+            nextDay = lastDay!!.plusDays(1)
 
             if (!isPartOfOngoingPeriod) {
                 updatedPeriods.add(
