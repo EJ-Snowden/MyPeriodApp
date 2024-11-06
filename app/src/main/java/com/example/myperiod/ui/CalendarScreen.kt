@@ -220,7 +220,7 @@ fun DayBox(
                 2 -> Color(0xFFF80C30) // Medium pink for flow level 2
                 3 -> Color(0xFFA80004) // Dark red for flow level 3
                 4 -> Color(0xFFFFCCD8) // Expected color
-                else -> Color(0xFFF80C30) // Default for period days
+                else -> Color(0xFFE0E0E0) // Default for period days
             }
         }
         else -> Color(0xFFE0E0E0) // Default color

@@ -20,6 +20,9 @@ class PeriodViewModel @Inject constructor(
 ) : ViewModel() {
 
     val allPeriods: LiveData<List<PeriodEntity>> = repository.getAllPeriods()
+    var previousDay : LocalDate? = null
+    var currentDay : LocalDate? = null
+    var nextDay : LocalDate? = null
 
     fun initializePeriodsIfEmpty(startDate: LocalDate, periodDuration: Int, cycleLength: Int) {
         viewModelScope.launch {
@@ -65,7 +68,13 @@ class PeriodViewModel @Inject constructor(
             // Check if the marked day is already part of an ongoing period
             val isPartOfOngoingPeriod = currentPeriods.any { it.date == date && it.flowLevel in 1..3 }
 
-            // Add the marked day as day 1 if it is not already a confirmed part of the period
+            // Check if the previous day is a confirmed period day (levels 1, 2, or 3)
+            currentDay = date
+            val isPreviousDayMarked = currentPeriods.any { currentDay == previousDay && it.flowLevel in 1..3 }
+            previousDay = date.minusDays(1)
+            val isNextDayMarked = currentPeriods.any { currentDay == nextDay && it.flowLevel in 1..3 }
+            nextDay = date.plusDays(1)
+
             if (!isPartOfOngoingPeriod) {
                 updatedPeriods.add(
                     PeriodEntity(
@@ -76,48 +85,94 @@ class PeriodViewModel @Inject constructor(
                 )
             }
 
-            // **Calculate expected days for the current cycle**
-            // This is only done after the first day is placed and ensures the `periodDuration` is maintained
-            for (i in 1 until periodDuration) {
-                val futureDate = date.plusDays(i.toLong())
-                val existingFuturePeriod = currentPeriods.find { it.date == futureDate }
+            // If marking a day backward (before an existing marked day), remove the last expected day
+            if (isPreviousDayMarked) {
+                // Find the last expected day within the current cycle
+                val currentCycleEnd = date.plusDays(periodDuration - 1L)
+                val lastExpectedDayInCycle = currentPeriods
+                    .filter { it.flowLevel == 4 && it.date > date && it.date <= currentCycleEnd.plusDays(2) }
+                    .maxByOrNull { it.date }
 
-                // Only mark as expected if it is not already marked as a confirmed period (levels 1, 2, 3)
-                if (existingFuturePeriod == null || existingFuturePeriod.flowLevel !in 1..3) {
+                // Remove the last expected day in the current cycle by setting it to level 0 (not expected)
+                if (lastExpectedDayInCycle != null) {
+                    updatedPeriods.removeAll { it.date == lastExpectedDayInCycle.date }
                     updatedPeriods.add(
                         PeriodEntity(
-                            date = futureDate,
+                            date = lastExpectedDayInCycle.date,
                             isPeriodDay = false,
-                            flowLevel = 4 // Mark as an expected day
+                            flowLevel = 0 // Mark as not expected
                         )
                     )
                 }
             }
 
-            // Calculate and add expected days for future cycles based on the cycle length
-            for (cycle in 1..11) {
-                val nextCycleStart = date.plusDays((cycleLength * cycle).toLong())
+            // Calculate expected days for the current cycle only if the previous day is not marked
+            if (!isPreviousDayMarked && !isNextDayMarked) {
+                for (i in 1 until periodDuration) {
+                    val futureDate = date.plusDays(i.toLong())
+                    val existingFuturePeriod = currentPeriods.find { it.date == futureDate }
 
-                for (i in 0 until periodDuration) {
-                    val cycleDate = nextCycleStart.plusDays(i.toLong())
-                    val existingCyclePeriod = currentPeriods.find { it.date == cycleDate }
-
-                    // Add only if not already marked with levels 1, 2, or 3
-                    if (existingCyclePeriod == null || existingCyclePeriod.flowLevel !in 1..3) {
+                    // Only mark as expected if it is not already marked as a confirmed period (levels 1, 2, 3)
+                    if (existingFuturePeriod == null || existingFuturePeriod.flowLevel !in 1..3) {
                         updatedPeriods.add(
                             PeriodEntity(
-                                date = cycleDate,
+                                date = futureDate,
                                 isPeriodDay = false,
-                                flowLevel = 4 // Expected for future cycles
+                                flowLevel = 4 // Mark as an expected day
                             )
                         )
                     }
                 }
             }
 
+            // Calculate and add expected days for future cycles based on the cycle length
+            if (!isPreviousDayMarked && !isNextDayMarked) {
+                for (cycle in 1..11) {
+                    val nextCycleStart = date.plusDays((cycleLength * cycle).toLong())
+
+                    for (i in 0 until periodDuration) {
+                        val cycleDate = nextCycleStart.plusDays(i.toLong())
+                        val existingCyclePeriod = currentPeriods.find { it.date == cycleDate }
+
+                        // Add only if not already marked with levels 1, 2, or 3
+                        if (existingCyclePeriod == null || existingCyclePeriod.flowLevel !in 1..3) {
+                            updatedPeriods.add(
+                                PeriodEntity(
+                                    date = cycleDate,
+                                    isPeriodDay = false,
+                                    flowLevel = 4 // Expected for future cycles
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (isPreviousDayMarked) {
+                // Find the last expected day within the current cycle
+                for (cycle in 1..11) {
+                    val nextCycleStart = date.plusDays((cycleLength * cycle).toLong())
+
+                    val lastExpectedDayInCycle = nextCycleStart.plusDays(periodDuration.toLong())
+                    updatedPeriods.removeAll { it.date == lastExpectedDayInCycle}
+                    updatedPeriods.add(
+                        PeriodEntity(
+                            date = lastExpectedDayInCycle,
+                            isPeriodDay = false,
+                            flowLevel = 0 // Mark as not expected
+                        )
+                    )
+                    updatedPeriods.add(
+                        PeriodEntity(
+                            date = nextCycleStart.minusDays(1),
+                            isPeriodDay = false,
+                            flowLevel = 4 // Mark as expected
+                        )
+                    )
+                }
+            }
             // Insert or update in the database
             repository.insertOrUpdatePeriods(updatedPeriods)
         }
     }
-
 }
